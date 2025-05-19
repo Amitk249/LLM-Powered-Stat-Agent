@@ -1,0 +1,28 @@
+# modules/vector_search.py
+
+from sentence_transformers import SentenceTransformer, util
+import numpy as np
+import pandas as pd
+
+model = SentenceTransformer('all-MiniLM-L6-v2')  # lightweight and fast
+
+def get_best_column(query: str, columns: list) -> str:
+    embeddings = model.encode([query] + columns)
+    query_emb = embeddings[0]
+    column_embs = embeddings[1:]
+    
+    scores = util.cos_sim(query_emb, column_embs)[0]
+    best_idx = scores.argmax()
+    return columns[best_idx]
+
+def get_best_rows(query: str, df: pd.DataFrame, top_k=5):
+    texts = df.astype(str).agg(" ".join, axis=1).tolist()
+    embeddings = model.encode([query] + texts)
+    
+    query_emb = embeddings[0]
+    row_embs = embeddings[1:]
+    
+    scores = util.cos_sim(query_emb, row_embs)[0]
+    top_indices = np.argsort(scores)[::-1][:top_k]
+    
+    return df.iloc[top_indices]
